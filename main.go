@@ -9,6 +9,11 @@ import (
 const (
 	screenWidth  = 1000;
 	screenHeight = 450;
+
+  movingUp = 0x0001;
+  movingDown = 0x0010;
+  movingRight = 0x0100;
+  movingLeft = 0x1000;
 )
 
 var (
@@ -25,8 +30,18 @@ var (
   playerSpeed float32 = 3.0;
 
   isMusicPlaying = true; 
-  bgMusic rl.Music 
+  bgMusic rl.Music;
   bgMusicVolume float32 = 0.65; 
+
+  camera rl.Camera2D;
+
+  frameCount = 0;
+  frameSpeed = 8; 
+  playerFrame = 0; 
+
+  movementDir = 0x0000;
+
+  playerDir = 1; // 1 Down, 0 Up, 2 Left, 3 Right based on the spritesheet
 )
 
 func drawScene() {
@@ -36,19 +51,23 @@ func drawScene() {
 
 func input() {
   if rl.IsKeyDown(rl.KeyW) || rl.IsKeyDown(rl.KeyUp) {
-    playerDest.Y-=playerSpeed;
+    movementDir |= movingUp;
+    playerDir = 1; 
   }
 
-  if rl.IsKeyDown(rl.KeyS) || rl.IsKeyDown(rl.KeyUp) {
-    playerDest.Y+=playerSpeed;
+  if rl.IsKeyDown(rl.KeyS) || rl.IsKeyDown(rl.KeyDown) {
+    movementDir |= movingDown;
+    playerDir = 0; 
   }
 
   if rl. IsKeyDown(rl.KeyA) || rl.IsKeyDown(rl.KeyLeft) {
-    playerDest.X-=playerSpeed;
+    movementDir |= movingLeft;
+    playerDir = 2;
   }
 
   if rl.IsKeyDown(rl.KeyD) || rl.IsKeyDown(rl.KeyRight) {
-    playerDest.X+=playerSpeed;
+    movementDir |= movingRight;
+    playerDir = 3; 
   }
 
   if rl.IsKeyPressed(rl.KeyQ) {
@@ -57,13 +76,39 @@ func input() {
   
   if rl.IsKeyPressed(rl.KeyMinus) {
     bgMusicVolume = float32(math.Max(0, float64(bgMusicVolume-0.1))); 
-  } else if rl.IsKeyPressed(rl.KeyEqual) {
+    rl.SetMusicVolume(bgMusic, bgMusicVolume);
+ } else if rl.IsKeyPressed(rl.KeyEqual) {
     bgMusicVolume = float32(math.Min(1, float64(bgMusicVolume+0.1)));
+    rl.SetMusicVolume(bgMusic, bgMusicVolume);
   }
 }
 
 func update() {
   running = !rl.WindowShouldClose();
+
+  frameCount++; 
+
+  if movementDir != 0 {
+    if movementDir&movingUp != 0 { 
+      playerDest.Y -= playerSpeed;
+    }
+    if movementDir&movingDown != 0 {
+      playerDest.Y += playerSpeed;
+    }
+
+    if movementDir&movingRight != 0 { 
+      playerDest.X += playerSpeed;
+    } 
+    if movementDir&movingLeft != 0 {
+      playerDest.X -= playerSpeed;
+    }
+
+    if frameCount % 8 == 1 { playerFrame++ };
+  } 
+
+  if playerFrame > 3 { playerFrame = 0; }
+  playerSrc.X = playerSrc.Width * float32(playerFrame); 
+  playerSrc.Y = playerSrc.Height * float32(playerDir); 
 
   rl.UpdateMusicStream(bgMusic); 
   if isMusicPlaying {
@@ -72,13 +117,20 @@ func update() {
     rl.PauseMusicStream(bgMusic);
   }
 
-  rl.SetMusicVolume(bgMusic, bgMusicVolume);
+  camera.Target = rl.NewVector2(float32(playerDest.X-(playerDest.Width/2)), float32(playerDest.Y-(playerDest.Height/2)));
+
+  movementDir = 0;
 }
 
 func render() {
 	rl.BeginDrawing();
 	rl.ClearBackground(bgColor);
+
+  rl.BeginMode2D(camera); 
+
 	drawScene();
+
+  rl.EndMode2D();
 	rl.EndDrawing();
 }
 
@@ -104,6 +156,9 @@ func init() {
   rl.InitAudioDevice();
   bgMusic = rl.LoadMusicStream("assets/averys-farm.mp3");
   rl.PlayMusicStream(bgMusic);
+
+  camera = rl.NewCamera2D(rl.NewVector2(float32(screenWidth/8), float32 (screenHeight/8)), rl.NewVector2(float32(playerDest.X-(playerDest.Width/2)), float32(playerDest.Y-(playerDest.Height/2))),
+0.0, 1.0)
 }
 
 func main() {
