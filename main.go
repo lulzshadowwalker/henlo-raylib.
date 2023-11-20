@@ -2,7 +2,6 @@ package main
 
 import (
 	"math"
-
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -44,8 +43,48 @@ var (
   playerDir = 1; // 1 Down, 0 Up, 2 Left, 3 Right based on the spritesheet
 )
 
+var (
+  // the sprite files we wanna pull from 
+  srcMap []string; 
+
+  // i.e. the map that we wanna draw onto the screen that has nothing to do with any sprite files 
+  // we only draw the sprites we load onto this map
+  mapHeight int;
+  mapWidth int;
+  // i.e. which blocks of the map we do or do not want to draw onto 
+  // TODO, might wanna make this a boolean
+  tileMap[]int; 
+
+  // where we wanna pull the sprite from (from the file)
+  tileSrc rl.Rectangle;
+  // where we wanna draw the tile onto the screen
+  tileDest rl.Rectangle;
+)
+
+func loadMap() {
+  mapWidth = 10; 
+  mapHeight = 10;
+  mapSize := mapWidth * mapHeight; 
+
+  for i := 0; i < mapSize; i++ {
+    tileMap = append(tileMap, 1); 
+  }
+}
+
 func drawScene() {
-	rl.DrawTexture(grassSprite, 100, 50, rl.White);
+  for i := 0; i < len(tileMap); i++ {
+    if tileMap[i] != 0 {
+      tileDest.X = tileDest.Width * float32(i % mapWidth); 
+      tileDest.Y = tileDest.Height * float32(i / mapWidth); 
+
+      tileSrc.X = tileSrc.Width * float32((tileMap[i]-1) % int(grassSprite.Width/int32(tileSrc.Width)));
+      tileSrc.Y = tileSrc.Width * float32((tileMap[i]-1) / int(grassSprite.Width/int32(tileSrc.Width)));
+
+      rl.DrawTexturePro(grassSprite, tileSrc, tileDest, rl.NewVector2(tileDest.Width, tileDest.Height), 0, rl.White);
+    }
+  }
+
+
   rl.DrawTexturePro(playerSprite, playerSrc, playerDest, rl.NewVector2(playerDest.Width, playerDest.Height), 0, rl.White);
 }
 
@@ -103,10 +142,10 @@ func update() {
       playerDest.X -= playerSpeed;
     }
 
-    if frameCount % 8 == 1 { playerFrame++ };
+    if frameCount % 6 == 1 { playerFrame++ };
     if playerFrame > 3 { playerFrame = 0; }
   } else {
-    if frameCount % 45 == 1 { playerFrame++; }
+    if frameCount % 30 == 1 { playerFrame++; }
     if playerFrame > 1 { playerFrame = 0; }
   }
 
@@ -146,12 +185,16 @@ func quit() {
 	rl.CloseWindow();
 }
 
-func init() {
+func initializeGame() {
 	rl.InitWindow(screenWidth, screenHeight, "Celeste");
 	rl.SetExitKey(0);
 	rl.SetTargetFPS(60);
 
 	grassSprite = rl.LoadTexture("assets/tiles/Grass.png");
+
+  tileSrc = rl.NewRectangle(0, 0, 16, 16); 
+  tileDest = rl.NewRectangle(0, 0, 16, 16); 
+
 	playerSprite = rl.LoadTexture("assets/characters/Basic Charakter Spritesheet.png");
 
 	playerSrc = rl.NewRectangle(0, 0, 48, 48);
@@ -161,11 +204,14 @@ func init() {
   bgMusic = rl.LoadMusicStream("assets/averys-farm.mp3");
   rl.PlayMusicStream(bgMusic);
 
-  camera = rl.NewCamera2D(rl.NewVector2(float32(screenWidth/8), float32 (screenHeight/8)), rl.NewVector2(float32(playerDest.X-(playerDest.Width/2)), float32(playerDest.Y-(playerDest.Height/2))),
+  camera = rl.NewCamera2D(rl.NewVector2(float32(screenWidth/2), float32 (screenHeight/2)), rl.NewVector2(float32(playerDest.X-(playerDest.Width/2)), float32(playerDest.Y-(playerDest.Height/2))),
 0.0, 1.0)
+
+  loadMap();
 }
 
 func main() {
+  initializeGame();
   defer quit();
 
 	for running {
