@@ -1,32 +1,44 @@
 package main
 
 import (
-	"math"
-	rl "github.com/gen2brain/raylib-go/raylib"
+  "log"
+  "math"
+  "os"
+  "strconv"
+  "strings"
+
+  rl "github.com/gen2brain/raylib-go/raylib"
 )
 
 const (
-	screenWidth  = 1000;
-	screenHeight = 450;
+  screenWidth  = 1000;
+  screenHeight = 450;
 
-  movingUp = 0x0001;
-  movingDown = 0x0010;
-  movingRight = 0x0100;
-  movingLeft = 0x1000;
+  movingUp = 0b0001;
+  movingDown = 0b0010;
+  movingRight = 0b0100;
+  movingLeft = 0b1000;
 )
 
 var (
-	running = true
+  running = true
 
   bgColor = rl.NewColor(147, 211, 196, 255);
 
-	grassSprite  rl.Texture2D;
-	playerSprite rl.Texture2D;
+  tex rl.Texture2D; 
+  grassSprite  rl.Texture2D;
+  hillSprite rl.Texture2D;
+  fenceSprite rl.Texture2D;
+  houseSprite rl.Texture2D;
+  waterSprite rl.Texture2D;
+  tilledSprite rl.Texture2D;
+  waterprite rl.Texture2D;
+  playerSprite rl.Texture2D;
 
-	playerSrc  rl.Rectangle;
-	playerDest rl.Rectangle;
+  playerSrc  rl.Rectangle;
+  playerDest rl.Rectangle;
 
-  playerSpeed float32 = 3.0;
+  playerSpeed float32 = 1.4;
 
   isMusicPlaying = true; 
   bgMusic rl.Music;
@@ -61,26 +73,55 @@ var (
   tileDest rl.Rectangle;
 )
 
-func loadMap() {
-  mapWidth = 10; 
-  mapHeight = 10;
-  mapSize := mapWidth * mapHeight; 
-
-  for i := 0; i < mapSize; i++ {
-    tileMap = append(tileMap, 1); 
+func loadMap(filePath string) {
+  file, err := os.ReadFile(filePath); 
+  if err != nil { 
+    log.Fatalf("cannot open map file at %q: error: %q", filePath, err); 
   }
+
+  data := strings.Split(strings.ReplaceAll(string(file), "\n", " "), " ");
+
+  var mapSize int; 
+  for i := range data { 
+    val64, _ := strconv.ParseInt(data[i], 10, 64); 
+
+    val := int(val64); 
+
+
+    if i == 0 {
+      mapWidth = val; 
+    } else if i == 1 {
+      mapHeight = val; 
+    } else if mapSize = mapHeight * mapWidth; i < mapSize+2 {
+      tileMap = append(tileMap, val); 
+    } else {
+      srcMap = append(srcMap, data[i]);
+    }
+  }
+
+  if len(tileMap) > mapSize { tileMap = tileMap[:len(tileMap)-1]; }
 }
 
 func drawScene() {
-  for i := 0; i < len(tileMap); i++ {
+  for i := range tileMap {
     if tileMap[i] != 0 {
+      switch srcMap[i] {
+      case "h": tex = houseSprite; 
+      case "l": tex = hillSprite; 
+      case "w": tex = waterSprite;
+      case "t": tex = tilledSprite;
+      case "f": tex = fenceSprite;
+      case "g": tex = grassSprite; 
+      default: continue; 
+    }
+
       tileDest.X = tileDest.Width * float32(i % mapWidth); 
       tileDest.Y = tileDest.Height * float32(i / mapWidth); 
 
-      tileSrc.X = tileSrc.Width * float32((tileMap[i]-1) % int(grassSprite.Width/int32(tileSrc.Width)));
-      tileSrc.Y = tileSrc.Width * float32((tileMap[i]-1) / int(grassSprite.Width/int32(tileSrc.Width)));
+      tileSrc.X = tileSrc.Width * float32((tileMap[i]-1) % int(tex.Width/int32(tileSrc.Width)));
+      tileSrc.Y = tileSrc.Width * float32((tileMap[i]-1) / int(tex.Width/int32(tileSrc.Width)));
 
-      rl.DrawTexturePro(grassSprite, tileSrc, tileDest, rl.NewVector2(tileDest.Width, tileDest.Height), 0, rl.White);
+      rl.DrawTexturePro(tex, tileSrc, tileDest, rl.NewVector2(tileDest.Width, tileDest.Height), 0, rl.White);
     }
   }
 
@@ -112,11 +153,11 @@ func input() {
   if rl.IsKeyPressed(rl.KeyQ) {
     isMusicPlaying = !isMusicPlaying; 
   }
-  
+
   if rl.IsKeyPressed(rl.KeyMinus) {
     bgMusicVolume = float32(math.Max(0, float64(bgMusicVolume-0.1))); 
     rl.SetMusicVolume(bgMusic, bgMusicVolume);
- } else if rl.IsKeyPressed(rl.KeyEqual) {
+  } else if rl.IsKeyPressed(rl.KeyEqual) {
     bgMusicVolume = float32(math.Min(1, float64(bgMusicVolume+0.1)));
     rl.SetMusicVolume(bgMusic, bgMusicVolume);
   }
@@ -130,15 +171,13 @@ func update() {
   if movementDir != 0 {
     if movementDir&movingUp != 0 { 
       playerDest.Y -= playerSpeed;
-    }
-    if movementDir&movingDown != 0 {
+    } else if movementDir&movingDown != 0 {
       playerDest.Y += playerSpeed;
     }
 
     if movementDir&movingRight != 0 { 
       playerDest.X += playerSpeed;
-    } 
-    if movementDir&movingLeft != 0 {
+    } else if movementDir&movingLeft != 0 {
       playerDest.X -= playerSpeed;
     }
 
@@ -161,62 +200,68 @@ func update() {
   }
 
   camera.Target = rl.NewVector2(float32(playerDest.X-(playerDest.Width/2)), float32(playerDest.Y-(playerDest.Height/2)));
+  camera.Zoom = 1.8;
 
   movementDir = 0;
 }
 
 func render() {
-	rl.BeginDrawing();
-	rl.ClearBackground(bgColor);
+  rl.BeginDrawing();
+  rl.ClearBackground(bgColor);
 
   rl.BeginMode2D(camera); 
 
-	drawScene();
+  drawScene();
 
   rl.EndMode2D();
-	rl.EndDrawing();
+  rl.EndDrawing();
 }
 
 func quit() {
-	rl.UnloadTexture(playerSprite);
-	rl.UnloadTexture(grassSprite);
+  rl.UnloadTexture(playerSprite);
+  rl.UnloadTexture(grassSprite);
   rl.UnloadMusicStream(bgMusic); 
   rl.CloseAudioDevice();
-	rl.CloseWindow();
+  rl.CloseWindow();
 }
 
 func initializeGame() {
-	rl.InitWindow(screenWidth, screenHeight, "Celeste");
-	rl.SetExitKey(0);
-	rl.SetTargetFPS(60);
+  rl.InitWindow(screenWidth, screenHeight, "Celeste");
+  rl.SetExitKey(0);
+  rl.SetTargetFPS(60);
 
-	grassSprite = rl.LoadTexture("assets/tiles/Grass.png");
+  grassSprite = rl.LoadTexture("assets/tiles/Grass.png");
+  houseSprite = rl.LoadTexture("assets/tiles/Wooden House.png");
+  waterSprite = rl.LoadTexture("assets/tiles/Water.png");
+  tilledSprite = rl.LoadTexture("assets/tiles/Tilled Dirt.png");
+  fenceSprite = rl.LoadTexture("assets/tiles/Fences.png");
+  hillSprite = rl.LoadTexture("assets/tiles/Hills.png");
 
   tileSrc = rl.NewRectangle(0, 0, 16, 16); 
   tileDest = rl.NewRectangle(0, 0, 16, 16); 
 
-	playerSprite = rl.LoadTexture("assets/characters/Basic Charakter Spritesheet.png");
+  playerSprite = rl.LoadTexture("assets/characters/Basic Charakter Spritesheet.png");
 
-	playerSrc = rl.NewRectangle(0, 0, 48, 48);
-	playerDest = rl.NewRectangle(200, 200, 100, 100);
+  playerSrc = rl.NewRectangle(0, 0, 48, 48);
+  playerDest = rl.NewRectangle(200, 200, 60, 60);
 
   rl.InitAudioDevice();
   bgMusic = rl.LoadMusicStream("assets/averys-farm.mp3");
   rl.PlayMusicStream(bgMusic);
 
   camera = rl.NewCamera2D(rl.NewVector2(float32(screenWidth/2), float32 (screenHeight/2)), rl.NewVector2(float32(playerDest.X-(playerDest.Width/2)), float32(playerDest.Y-(playerDest.Height/2))),
-0.0, 1.0)
+    0.0, 1.0);
 
-  loadMap();
+  loadMap("./world.map");
 }
 
 func main() {
   initializeGame();
   defer quit();
 
-	for running {
-		input();
-		update();
-		render();
-	}
+  for running {
+    input();
+    update();
+    render();
+  }
 }
