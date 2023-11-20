@@ -104,9 +104,13 @@ func update() {
     }
 
     if frameCount % 8 == 1 { playerFrame++ };
-  } 
+    if playerFrame > 3 { playerFrame = 0; }
+  } else {
+    if frameCount % 45 == 1 { playerFrame++; }
+    if playerFrame > 1 { playerFrame = 0; }
+  }
 
-  if playerFrame > 3 { playerFrame = 0; }
+
   playerSrc.X = playerSrc.Width * float32(playerFrame); 
   playerSrc.Y = playerSrc.Height * float32(playerDir); 
 
